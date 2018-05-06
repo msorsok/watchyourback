@@ -40,7 +40,7 @@ class Player:
         if turns in SHRINK_BEFORE:
             self.shrink(turns)
 
-        if self.actions != 0 and self.actions % 12 == 0:
+        if self.actions != 0 and (self.actions % 12 == 0):
             self.neuralNet.updateWeights()
             self.tdLeaf = []
 
@@ -57,7 +57,7 @@ class Player:
 
         if actions:
             for action in actions:
-                curr_prob, score, hiddenScore = self.evaluateAction(action)
+                curr_prob, score, hiddenScore = self.evaluateAction(action, turns)
                 if curr_prob > bestProb:
                     bestAction = action
                     bestProb = curr_prob
@@ -71,6 +71,7 @@ class Player:
 
         if turns in SHRINK_AFTER:
             self.shrink(turns)
+
         return bestAction
 
 
@@ -121,14 +122,14 @@ class Player:
         return actions
 
     #evaluates the probability of winning if a certain action is taken
-    def evaluateAction(self, action):
+    def evaluateAction(self, action, turns):
 
         x, y = action
         #if placing action
         if (isinstance(x, int) and isinstance(y, int)):
             piece = Piece(self.colour, (x,y), self.board)
             eliminated = piece.makemove((x,y))
-            prob, score, hiddenScore = self.neuralNet.evaluateBoardAdvanced(self.board, self.colour)
+            prob, score, hiddenScore = self.neuralNet.evaluateBoardAdvanced(self.board, self.colour, turns)
             piece.undomove((x, y), eliminated)
             piece.eliminate()
 
@@ -136,7 +137,7 @@ class Player:
         else:
             piece = self.board.find_piece(x)
             eliminated = piece.makemove(y)
-            prob, score, hiddenScore = self.neuralNet.evaluateBoardAdvanced(self.board, self.colour)
+            prob, score, hiddenScore = self.neuralNet.evaluateBoardAdvanced(self.board, self.colour, turns)
             piece.undomove(x, eliminated)
 
         return prob, score, hiddenScore
