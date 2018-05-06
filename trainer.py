@@ -4,7 +4,7 @@ def main():
     p1 = 0
     p2 = 0
     draws = 0
-    player1 = "playerRandom"
+    player1 = "playerw"
     #player1= "playerLearner"
     player2 = "player"
     for x in range(100):

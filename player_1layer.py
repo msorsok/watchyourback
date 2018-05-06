@@ -1,6 +1,6 @@
 
 from state_representation import *
-from experimentingw import NeuralNet
+from neural_net_1layer import NeuralNet
 # initialise player
 # set up internal representation of the board
 # colour is either 'white' or 'black'
@@ -21,6 +21,7 @@ class Player:
         self.actions = 0
         self.board = self.initialiseBoard()
         self.neuralNet = NeuralNet()
+        self.tdLeaf = []
 
         if colour.upper() == "BLACK":
             self.colour = BLACK
@@ -39,7 +40,6 @@ class Player:
         if turns in SHRINK_BEFORE:
             self.shrink(turns)
 
-
         if self.actions < PLACING_ACTIONS:
             actions = self.generatePlacingActions()
 
@@ -49,16 +49,14 @@ class Player:
         bestProb = 0
         bestAction = None
         bestScore = 0
-        bestHiddenScore = 0
 
         if actions:
             for action in actions:
-                curr_prob, score, hiddenScore = self.evaluateAction(action)
+                curr_prob, score = self.evaluateAction(action)
                 if curr_prob > bestProb:
                     bestAction = action
                     bestProb = curr_prob
                     bestScore = score
-                    bestHiddenScore = hiddenScore
 
             self.updateBoard(bestAction, self.colour)
         self.actions += 1
@@ -122,7 +120,7 @@ class Player:
         if (isinstance(x, int) and isinstance(y, int)):
             piece = Piece(self.colour, (x,y), self.board)
             eliminated = piece.makemove((x,y))
-            prob, score, hiddenScore = self.neuralNet.evaluateBoardAdvanced(self.board, self.colour)
+            prob, score = self.neuralNet.evaluateBoardAdvanced(self.board, self.colour)
             piece.undomove((x, y), eliminated)
             piece.eliminate()
 
@@ -130,10 +128,10 @@ class Player:
         else:
             piece = self.board.find_piece(x)
             eliminated = piece.makemove(y)
-            prob, score, hiddenScore = self.neuralNet.evaluateBoardAdvanced(self.board, self.colour)
+            prob, score = self.neuralNet.evaluateBoardAdvanced(self.board, self.colour)
             piece.undomove(x, eliminated)
 
-        return prob, score, hiddenScore
+        return prob, score
 
     #enacts action on board
     def updateBoard(self, action, colour):

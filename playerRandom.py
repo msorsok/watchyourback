@@ -1,6 +1,6 @@
 
 from state_representation import *
-from experimenting import NeuralNet
+from neural_net import NeuralNet
 import random
 # initialise player
 # set up internal representation of the board
