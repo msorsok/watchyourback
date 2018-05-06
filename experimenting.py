@@ -31,7 +31,7 @@ class NeuralNet:
         self.weights = {}
 
         try:
-            self.weights = pickle.load(open("weights", "rb"))
+            self.weights = pickle.load(open("weights.p.p", "rb"))
 
         except:
             self.weights["w1"] = np.random.random_sample((self.hidden, self.input))
@@ -40,7 +40,7 @@ class NeuralNet:
             self.weights["w2"] = self.weights["w2"] / np.amax(np.abs(self.weights["w2"]))
             print(self.weights["w2"])
 
-        pickle.dump(self.weights, open("weights", "wb"))
+        pickle.dump(self.weights, open("weights.p.p", "wb"))
 
         self.batch_observations = []
         self.batch_layer1 = []
@@ -70,7 +70,7 @@ class NeuralNet:
         return vector
 
     def evaluateBoardAdvanced(self, board, colour):
-        self.weights = pickle.load(open("weights", "rb"))
+        self.weights = pickle.load(open("weights.p.p", "rb"))
         observations = self.prepro(board, colour)
         layer1 = np.dot(self.weights["w1"], observations)
         layer1_activated = list(map(self.relu, layer1))
@@ -116,6 +116,6 @@ class NeuralNet:
 
         self.weights["w2"] = np.array(list(map(self.updateWeight, self.weights["w2"])))
         self.weights["w2"] = self.weights["w2"] / np.amax(np.abs(self.weights["w2"]))
-        pickle.dump(self.weights["w2"], open("weights2", "wb"))
+        pickle.dump(self.weights, open("weights.p.p", "wb"))
         return
 
