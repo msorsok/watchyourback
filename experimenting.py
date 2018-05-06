@@ -31,19 +31,16 @@ class NeuralNet:
         self.weights = {}
 
         try:
-            self.weights["w1"] = pickle.load(open("weights1", "rb"))
-            self.weights["w1"] = self.weights["w1"] / np.amax(np.abs(self.weights["w1"]))
+            self.weights = pickle.load(open("weights", "rb"))
 
-            self.weights["w2"] = pickle.load(open("weights2", "rb"))
-            self.weights["w2"] = self.weights["w2"] / np.amax(np.abs(self.weights["w2"]))
         except:
-            self.weights["w1"] = np.random.random_sample(self.input)
-            self.weights["w1"] = self.weights["w1"] / np.amax(np.abs(self.weights["w1"]))
-            pickle.dump(self.weights["w1"], open("weights1", "wb"))
-
+            self.weights["w1"] = np.random.random_sample((self.hidden, self.input))
+            print(self.weights["w1"])
             self.weights["w2"] = np.random.random_sample(self.hidden)
             self.weights["w2"] = self.weights["w2"] / np.amax(np.abs(self.weights["w2"]))
-            pickle.dump(self.weights["w2"], open("weights2", "wb"))
+            print(self.weights["w2"])
+
+        pickle.dump(self.weights, open("weights", "wb"))
 
         self.batch_observations = []
         self.batch_layer1 = []
@@ -73,25 +70,31 @@ class NeuralNet:
         return vector
 
     def evaluateBoardAdvanced(self, board, colour):
-        self.weights["w2"] = pickle.load(open("weights2", "rb"))
+        self.weights = pickle.load(open("weights", "rb"))
         observations = self.prepro(board, colour)
-        #layer1 = np.dot(self.weights2[0], observations)
-        #layer1 = list(map(self.relu, layer1))
-        #self.batch_layer1.append(layer1)
-        layer2 = np.dot(self.weights["w2"], observations)
-        return self.sigmoid(layer2), layer2
+        layer1 = np.dot(self.weights["w1"], observations)
+        layer1_activated = list(map(self.relu, layer1))
+        layer2 = np.dot(self.weights["w2"], layer1_activated)
+        return self.sigmoid(layer2), layer2, layer1
 
     def deriv_sigmoid(self, x):
         return np.exp(-x) / ((1.0 + np.exp(-x))**2)
 
-    def updateWeight1(self,weight):
+    def deriv_relu(self, x):
+        if x <= 0:
+            return 0
+        return 1
+
+
+
+    def updateWeight1(self, weight, index):
         tdLeaf = pickle.load(open("tdLeaf.p", "rb"))
         term1 = 0
         for x in range(1, len(tdLeaf)):
             term2 = 0
             for y in range(1, len(tdLeaf)):
                 term2 += (self.myLambda ** (y - x)) * (tdLeaf[y][0] - tdLeaf[y - 1][0])
-            term1 += term2 * self.deriv_sigmoid(tdLeaf[x-1][1]) * weight
+            term1 += term2 * self.deriv_sigmoid(tdLeaf[x-1][1]) * self.weights["w2"][index] * self.deriv_relu(tdLeaf[x-1][2][index] * weight)
         new_weight = weight + term1 * self.learning_rate
         return new_weight
 
@@ -108,6 +111,9 @@ class NeuralNet:
         return new_weight
 
     def updateWeights(self):
+        for index in range(len(self.weights["w2"])):
+            self.weights["w1"][index] = np.array([self.updateWeight1(x, index) for x in self.weights["w1"][index]])
+
         self.weights["w2"] = np.array(list(map(self.updateWeight, self.weights["w2"])))
         self.weights["w2"] = self.weights["w2"] / np.amax(np.abs(self.weights["w2"]))
         pickle.dump(self.weights["w2"], open("weights2", "wb"))

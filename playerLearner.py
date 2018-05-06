@@ -53,18 +53,20 @@ class Player:
         bestProb = 0
         bestAction = None
         bestScore = 0
+        bestHiddenScore = 0
 
         if actions:
             for action in actions:
-                curr_prob, score = self.evaluateAction(action)
+                curr_prob, score, hiddenScore = self.evaluateAction(action)
                 if curr_prob > bestProb:
                     bestAction = action
                     bestProb = curr_prob
                     bestScore = score
+                    bestHiddenScore = hiddenScore
 
             self.updateBoard(bestAction, self.colour)
         self.actions += 1
-        self.tdLeaf.append((bestProb, bestScore))
+        self.tdLeaf.append((bestProb, bestScore, bestHiddenScore))
         pickle.dump(self.tdLeaf, open("tdLeaf.p", "wb"))
 
         if turns in SHRINK_AFTER:
@@ -126,7 +128,7 @@ class Player:
         if (isinstance(x, int) and isinstance(y, int)):
             piece = Piece(self.colour, (x,y), self.board)
             eliminated = piece.makemove((x,y))
-            prob, score = self.neuralNet.evaluateBoardAdvanced(self.board, self.colour)
+            prob, score, hiddenScore = self.neuralNet.evaluateBoardAdvanced(self.board, self.colour)
             piece.undomove((x, y), eliminated)
             piece.eliminate()
 
@@ -134,10 +136,10 @@ class Player:
         else:
             piece = self.board.find_piece(x)
             eliminated = piece.makemove(y)
-            prob, score = self.neuralNet.evaluateBoardAdvanced(self.board, self.colour)
+            prob, score, hiddenScore = self.neuralNet.evaluateBoardAdvanced(self.board, self.colour)
             piece.undomove(x, eliminated)
 
-        return prob, score
+        return prob, score, hiddenScore
 
     #enacts action on board
     def updateBoard(self, action, colour):
