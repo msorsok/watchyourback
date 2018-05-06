@@ -20,7 +20,7 @@ class Player:
     def __init__(self, colour):
         self.actions = 0
         self.board = self.initialiseBoard()
-        self.neuralNet = NeuralNet(True)
+        self.neuralNet = NeuralNet()
         self.tdLeaf = []
 
         if colour.upper() == "BLACK":
@@ -40,7 +40,7 @@ class Player:
         if turns in SHRINK_BEFORE:
             self.shrink(turns)
 
-        if self.actions != 0 and self.actions % 100 == 0:
+        if self.actions != 0 and self.actions % 12 == 0:
             self.neuralNet.updateWeights()
             self.tdLeaf = []
 

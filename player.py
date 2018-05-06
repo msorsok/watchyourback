@@ -20,7 +20,7 @@ class Player:
     def __init__(self, colour):
         self.actions = 0
         self.board = self.initialiseBoard()
-        self.neuralNet = NeuralNet(False)
+        self.neuralNet = NeuralNet()
         self.tdLeaf = []
 
         if colour.upper() == "BLACK":

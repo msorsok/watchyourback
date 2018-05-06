@@ -8,42 +8,38 @@ import importlib
 
 VERSION_INFO = """Referee version 1.1 (released Apr 08 2018)
 Plays a basic game of Watch Your Back! between two Player classes
-Run `python referee.py -h` for help and additional usage information
+Run `python referee_trainer.py -h` for help and additional usage information
 """
 
-def main():
+def main(white_module, black_module):
     """Coordinate a game of Watch Your Back! between two Player classes."""
 
     # load command-line options for the game and print welcome message
-    options = _Options()
-    print(VERSION_INFO)
-
+    white_player = _load_player(white_module)
+    black_player = _load_player(black_module)
     # initialise the game and players
     game  = _Game()
-    white = _Player(options.white_player, 'white')
-    black = _Player(options.black_player, 'black')
+    white = _Player(white_player, 'white')
+    black = _Player(black_player, 'black')
 
     # now, play the game!
     player, opponent = white, black # white has first move
-    print(game)
     while game.playing():
-        if options.delay:
-            time.sleep(options.delay)
         turns = game.turns
         action = player.action(turns)
+        if (turns == 300):
+            break
         try:
             game.update(action)
         except _InvalidActionException as e:
             # if one of the players makes an invalid action,
             # print the error message
-            print(f"invalid action ({game.loser}):", e)
             break
-        print(game)
         opponent.update(action)
         # other player's turn!
         player, opponent = opponent, player
 
-    print(f'winner: {game.winner}!')
+    return(game.winner)
 
 # --------------------------------------------------------------------------- #
 
@@ -61,7 +57,7 @@ class _Options:
     Parse and contain command-line arguments.
 
     --- help message: ---
-    usage: referee.py [-h] [-d [DELAY]] white_module black_module
+    usage: referee_trainer.py [-h] [-d [DELAY]] white_module black_module
 
     Plays a basic game of Watch Your Back! between two Player classes
 

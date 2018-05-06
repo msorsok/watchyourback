@@ -15,7 +15,7 @@ BOARD_SIZE = 8
 
 class NeuralNet:
 
-    def __init__(self, advanced):
+    def __init__(self):
         # hyperparameters
         self.episode_number = 0
         self.batch_size = 10
@@ -23,23 +23,22 @@ class NeuralNet:
         self.decay_rate = 0.99
         self.hidden = 32
         self.input = 64
-        self.learning_rate = 1e-1
+        self.learning_rate = 0.1
         self.reward_sum = 0
-        self.myLambda = 0.9
+        self.myLambda = 0.7
         self.running_reward = None
         self.prev_processed_observations = None
         self.weights = {}
-       #self.weights["w1"] = np.random.randn(self.hidden, self.input) / np.sqrt(self.input)
-        if advanced:
-            try:
-                self.weights["w2"] = pickle.load(open("weights", "rb"))
-            except:
-                print("no weights found, making new")
-                self.weights["w2"] = np.random.random_sample(self.input)
-                print(self.weights["w2"])
-                pickle.dump(self.weights["w2"], open("weights", "wb"))
-        else:
+        #self.weights["w1"] = np.random.randn(self.hidden, self.input) / np.sqrt(self.input)
+        try:
             self.weights["w2"] = pickle.load(open("weights", "rb"))
+            self.weights["w2"] = self.weights["w2"] / np.amax(np.abs(self.weights["w2"]))
+        except:
+            print("no weights found, making new")
+            self.weights["w2"] = np.random.random_sample(self.input)
+            pickle.dump(self.weights["w2"], open("weights", "wb"))
+            self.weights["w2"] = self.weights["w2"] / np.amax(np.abs(self.weights["w2"]))
+
         self.batch_observations = []
         self.batch_layer1 = []
         self.batch_layer2 = []
@@ -67,16 +66,8 @@ class NeuralNet:
                     vector.append(0)
         return vector
 
-    def evaluateBoard(self, board, colour):
-        observations = self.prepro(board, colour)
-        #layer1 = np.dot(self.weights[0], observations)
-        #layer1 = list(map(self.relu, layer1))
-        #self.batch_layer1.append(layer1)
-        layer2 = np.dot(self.weights["w2"], observations)
-        layer2 = self.sigmoid(layer2)
-        return layer2
-
     def evaluateBoardAdvanced(self, board, colour):
+        self.weights["w2"] = pickle.load(open("weights", "rb"))
         observations = self.prepro(board, colour)
         #layer1 = np.dot(self.weights[0], observations)
         #layer1 = list(map(self.relu, layer1))
@@ -99,9 +90,8 @@ class NeuralNet:
         return new_weight
 
     def updateWeights(self):
-        #print(self.weights["w2"])
         self.weights["w2"] = np.array(list(map(self.updateWeight, self.weights["w2"])))
-        self.weights["w2"] = self.weights["w2"] / np.amax(self.weights["w2"])
+        self.weights["w2"] = self.weights["w2"] / np.amax(np.abs(self.weights["w2"]))
         pickle.dump(self.weights["w2"], open("weights", "wb"))
         return
 
