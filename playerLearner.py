@@ -41,6 +41,7 @@ class Player:
             self.shrink(turns)
 
         if self.actions != 0 and (self.actions % 12 == 0):
+            print("updating weights")
             self.neuralNet.updateWeights()
             self.tdLeaf = []
 
@@ -152,7 +153,7 @@ class Player:
             else:
                 piece = self.board.find_piece(x)
                 piece.makemove(y)
-            return
+            return (x)
 
 
     def shrink(self, turns):

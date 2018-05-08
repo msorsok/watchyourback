@@ -6,9 +6,9 @@ def main():
     draws = 0
     player1 = "player_1layer"
     player1 = "playerRandom"
-    player1= "playerLearner"
+    #player1= "playerLearner"
     player2 = "player"
-    for x in range(1, 501):
+    for x in range(1, 21):
         if np.random.randint(0,2) == 1:
             winner = referee_trainer.main(player1, player2)
             if (winner == "B"):

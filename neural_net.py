@@ -13,7 +13,10 @@ FRIENDS = {WHITE: {WHITE, CORNER}, BLACK: {BLACK, CORNER}}
 BOARD_SIZE = 8
 MAX_TURNS = 300
 MAX_PIECES = 12
-
+EDGE1 = [0, BOARD_SIZE - 1]
+EDGE2 = [1, BOARD_SIZE - 2]
+CORNERS1 = [(1, 1), (1, 6), (6, 6), (6, 1)]
+CORNERS2 = [(2, 2), (2, 5), (5, 5), (5, 2)]
 
 class NeuralNet:
 
@@ -24,8 +27,8 @@ class NeuralNet:
         self.gamma = 0.99  # discount factor for reward
         self.decay_rate = 0.99
         self.hidden = 70
-        self.input = 135
-        self.learning_rate = 1e-1
+        self.input = 145
+        self.learning_rate = 1
         self.reward_sum = 0
         self.myLambda = 0.7
         self.running_reward = None
@@ -54,17 +57,20 @@ class NeuralNet:
 
     def prepro(self, board, colour, turns):
         vector =[]
+        if colour == BLACK:
+            friendly_pieces = board.black_pieces
+            enemy_pieces = board.white_pieces
+        else:
+            friendly_pieces = board.white_pieces
+            enemy_pieces = board.black_pieces
 
         # number of turns
         vector.append(turns/MAX_TURNS)
 
         # no. friendly pieces, no. enemy pieces
-        if colour == BLACK:
-            vector.append(len(board.black_pieces)/MAX_PIECES)
-            vector.append(len(board.white_pieces)/MAX_PIECES)
-        else:
-            vector.append(len(board.white_pieces)/MAX_PIECES)
-            vector.append(len(board.black_pieces)/MAX_PIECES)
+
+        vector.append(len(friendly_pieces)/MAX_PIECES)
+        vector.append(len(enemy_pieces)/MAX_PIECES)
 
         #placing phase
         if turns < 24:
@@ -93,27 +99,20 @@ class NeuralNet:
         #Attack defend map
         grid = {}
 
-        if colour == BLACK:
-            black_points = 1
-            white_points = -1
 
-        else:
-            black_points = -1
-            white_points = 1
-
-        for piece in board.black_pieces:
+        for piece in friendly_pieces:
             for _, pos in piece.moves():
                 if pos in grid:
-                    grid[pos] += black_points
+                    grid[pos] += 1
                 else:
-                    grid[pos] = black_points
+                    grid[pos] = 1
 
-        for piece in board.white_pieces:
+        for piece in enemy_pieces:
             for _, pos in piece.moves():
                 if pos in grid:
-                    grid[pos] += white_points
+                    grid[pos] += -1
                 else:
-                    grid[pos] = white_points
+                    grid[pos] = -1
 
 
         for x in range(BOARD_SIZE):
@@ -132,6 +131,70 @@ class NeuralNet:
                     vector.append(1)
                 else:
                     vector.append(0)
+
+        #pieces in outer edge
+        friendlies = 0
+        for piece in friendly_pieces:
+            x, y = piece.pos
+            if x in EDGE1 or y in EDGE1:
+                friendlies+=1
+        vector.append(friendlies)
+        enemies = 0
+        for piece in enemy_pieces:
+            x, y = piece.pos
+            if x in EDGE1 or y in EDGE1:
+                enemies += 1
+        vector.append(enemies)
+
+        # pieces in second edge
+        friendlies = 0
+        for piece in friendly_pieces:
+            x, y = piece.pos
+            if x in EDGE2 or y in EDGE1:
+                friendlies += 1
+        vector.append(friendlies)
+        enemies = 0
+        for piece in enemy_pieces:
+            x, y = piece.pos
+            if x in EDGE2 or y in EDGE1:
+                enemies += 1
+        vector.append(enemies)
+
+        #pieces in corners 1
+        friendlies = 0
+        for piece in friendly_pieces:
+            if piece.pos in CORNERS1:
+                friendlies += 1
+        vector.append(friendlies)
+        enemies = 0
+        for piece in enemy_pieces:
+            if piece.pos in CORNERS1:
+                enemies += 1
+        vector.append(enemies)
+
+        # pieces in corners 2
+        friendlies = 0
+        for piece in friendly_pieces:
+            if piece.pos in CORNERS2:
+                friendlies += 1
+        vector.append(friendlies)
+        enemies = 0
+        for piece in enemy_pieces:
+            if piece.pos in CORNERS2:
+                enemies += 1
+        vector.append(enemies)
+
+        #friendly moves
+        friendly_moves = 0
+        for piece in friendly_pieces:
+            friendly_moves += len(piece.moves())
+        vector.append(friendly_moves)
+
+        # enemy moves
+        enemy_moves = 0
+        for piece in enemy_pieces:
+            enemy_moves += len(piece.moves())
+        vector.append(friendly_moves)
         return vector
 
     def evaluateBoardAdvanced(self, board, colour, turns):
@@ -140,6 +203,7 @@ class NeuralNet:
         layer1 = np.dot(self.weights["w1"], observations)
         layer1_activated = list(map(self.relu, layer1))
         layer2 = np.dot(self.weights["w2"], layer1_activated)
+        #print(self.sigmoid(layer2))
         return self.sigmoid(layer2), layer2, layer1
 
     def deriv_sigmoid(self, x):
@@ -173,7 +237,6 @@ class NeuralNet:
 
     def updateWeights(self):
         self.tdLeaf = pickle.load(open("tdLeaf.p", "rb"))
-        #print(self.tdLeaf)
         for index in range(self.hidden):
             self.weights["w1"][index] = np.array([self.updateWeight1(x, index) for x in self.weights["w1"][index]])
         self.weights["w2"] = np.array(list(map(self.updateWeight2, self.weights["w2"])))

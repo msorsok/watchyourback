@@ -18,7 +18,7 @@ SHRINK2 = [191, 192]
 class Player:
 
     def __init__(self, colour):
-        self.actions = 0
+        self.isPlacing = True
         self.board = self.initialiseBoard()
         self.neuralNet = NeuralNet()
 
@@ -36,36 +36,20 @@ class Player:
     # player selects next action and returns it given current state of the board
     # turns - number of turns that have taken place since start of current game phase
     def action(self, turns):
+        print(turns)
         if turns in SHRINK_BEFORE:
             self.shrink(turns)
 
-
-        if self.actions < PLACING_ACTIONS:
-            actions = self.generatePlacingActions()
-
-        else:
-            actions = self.generateMovingActions()
-
-        bestProb = 0
-        bestAction = None
-        bestScore = 0
-        bestHiddenScore = 0
-
-        if actions:
-            for action in actions:
-                curr_prob, score, hiddenScore = self.evaluateAction(action, turns)
-                if curr_prob > bestProb:
-                    bestAction = action
-                    bestProb = curr_prob
-                    bestScore = score
-                    bestHiddenScore = hiddenScore
-
-            self.updateBoard(bestAction, self.colour)
-        self.actions += 1
-
+        action, prob, score, hiddenScore, alpha = self.max_value(3, None, self.colour, turns, self.isPlacing, None, None)
+        self.updateBoard(action, self.colour)
         if turns in SHRINK_AFTER:
             self.shrink(turns)
-        return bestAction
+        if self.isPlacing and turns == 23:
+            self.isPlacing = False
+
+        if self.isPlacing and turns == 22:
+            self.isPlacing = False
+        return action
 
 
     # update player about opponents moves
@@ -78,6 +62,67 @@ class Player:
         return
 
 
+    def max_value(self, depth, action, colour, turns, isPlacing, alpha, beta):
+        if depth == 0:
+            prob, score, hiddenScore = self.evaluateAction(action, turns)
+            return action, prob, score, hiddenScore, prob
+        update_information = self.updateBoard(action, colour)
+        if isPlacing and turns == 24:
+            isPlacing = False
+            turns = -1
+        if colour == BLACK:
+            new_colour = WHITE
+        else:
+            new_colour = BLACK
+        potential_actions = self.generateActions(isPlacing, colour)
+        best_move, best_prob, best_score, best_hiddenScore = None, 0, None, None
+        for move in potential_actions:
+            temp_action, temp_prob, temp_score, temp_hiddenScore, temp_alphabeta = self.min_value(depth - 1, move, new_colour, turns + 1, isPlacing, alpha, beta)
+
+            if temp_prob > best_prob:
+                best_move, best_prob, best_score, best_hiddenScore = move, temp_prob, temp_score, temp_hiddenScore
+
+            if alpha == None or temp_alphabeta > alpha:
+                alpha = temp_alphabeta
+
+            if beta != None and alpha != None:
+                if alpha >= beta:
+                    self.undo_update(update_information)
+                    return best_move, best_prob, best_score, best_hiddenScore, beta
+        self.undo_update(update_information)
+        return best_move, best_prob, best_score, best_hiddenScore, alpha
+
+
+    def min_value(self, depth, action, colour, turns, isPlacing, alpha, beta):
+        if depth == 0:
+            prob, score, hiddenScore = self.evaluateAction(action, turns)
+            return action, prob, score, hiddenScore, prob
+        update_information = self.updateBoard(action, colour)
+        if isPlacing and turns == 24:
+            isPlacing = False
+            turns = -1
+        if colour == BLACK:
+            new_colour = WHITE
+        else:
+            new_colour = BLACK
+        best_move, best_prob, best_score, best_hiddenScore = None, 1, None, None
+        for move in self.generateActions(isPlacing, colour):
+            temp_action, temp_prob, temp_score, temp_hiddenScore, temp_alphabeta = self.max_value(depth - 1, move, new_colour, turns + 1, isPlacing, alpha, beta)
+
+            if temp_prob < best_prob:
+                best_move, best_prob, best_score, best_hiddenScore = move, temp_prob, temp_score, temp_hiddenScore
+
+            if beta == None or temp_alphabeta < beta:
+                beta = temp_alphabeta
+
+            if beta != None and alpha != None:
+                if alpha >= beta:
+                    self.undo_update(update_information)
+                    return best_move, best_prob, best_score, best_hiddenScore, alpha
+        self.undo_update(update_information)
+        return best_move, best_prob, best_score, best_hiddenScore, beta
+
+
     #returns a new board object with no pieces on it
     def initialiseBoard(self):
         layout = [ [ BLANK for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
@@ -85,10 +130,14 @@ class Player:
             layout[x][y] = CORNER
         return Board(layout)
 
+    def generateActions(self, isPlacing, colour):
+        if isPlacing:
+            return self.generatePlacingActions(colour)
+        return self.generateMovingActions(colour)
 
     #returns a list of all possible actions in placing phase
-    def generatePlacingActions(self):
-        if self.colour == WHITE:
+    def generatePlacingActions(self, colour):
+        if colour == WHITE:
             y_start = 0
             y_end = 6
         else:
@@ -103,20 +152,21 @@ class Player:
         return actions
 
     #returns a list of all possible actions in moving phase
-    def generateMovingActions(self):
+    def generateMovingActions(self, colour):
         actions = []
-        if self.colour == BLACK:
+        if colour == BLACK:
             pieces = self.board.black_pieces
         else:
             pieces = self.board.white_pieces
 
         for piece in pieces:
             actions += piece.moves()
+        if len(actions) == 0:
+            return [None]
         return actions
 
     #evaluates the probability of winning if a certain action is taken
     def evaluateAction(self, action, turns):
-
         x, y = action
         #if placing action
         if (isinstance(x, int) and isinstance(y, int)):
@@ -141,12 +191,25 @@ class Player:
             x, y = action
             if (isinstance(x, int) and isinstance(y, int)):
                 piece = Piece(colour, (x, y), self.board)
-                piece.makemove((x, y))
+                eliminated = piece.makemove((x, y))
             else:
                 piece = self.board.find_piece(x)
-                piece.makemove(y)
-            return
+                eliminated = piece.makemove(y)
+            return piece, eliminated, action
+        return None, None, None
 
+
+    def undo_update(self, update_information):
+        piece, eliminated, action = update_information
+        if action:
+            x, y = action
+            if (isinstance(x, int) and isinstance(y, int)):
+                piece.undomove((x, y), eliminated)
+                piece.eliminate()
+            else:
+                piece.undomove(x, eliminated)
+
+            return
 
     def shrink(self, turns):
         if turns in SHRINK1:
