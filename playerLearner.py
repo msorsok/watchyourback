@@ -92,7 +92,7 @@ class Player:
         else:
             new_colour = BLACK
         potential_actions = self.generateActions(isPlacing, colour)
-        best_move, best_prob, best_score, best_hiddenScore = None, 0, None, None
+        best_move, best_prob, best_score, best_hiddenScore = None, -1, None, None
         for move in potential_actions:
             temp_action, temp_prob, temp_score, temp_hiddenScore, temp_alphabeta = self.min_value(depth - 1, move, new_colour, turns + 1, isPlacing, alpha, beta)
 
@@ -129,7 +129,7 @@ class Player:
             new_colour = WHITE
         else:
             new_colour = BLACK
-        best_move, best_prob, best_score, best_hiddenScore = None, 1, None, None
+        best_move, best_prob, best_score, best_hiddenScore = None, 2, None, None
         for move in self.generateActions(isPlacing, colour):
             temp_action, temp_prob, temp_score, temp_hiddenScore, temp_alphabeta = self.max_value(depth - 1, move, new_colour, turns + 1, isPlacing, alpha, beta)
 
