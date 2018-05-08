@@ -5,7 +5,7 @@ def main():
     p2 = 0
     draws = 0
     player1 = "player_1layer"
-    player1 = "playerRandom"
+    #player1 = "playerRandom"
     #player1= "playerLearner"
     player2 = "player"
     for x in range(1, 21):

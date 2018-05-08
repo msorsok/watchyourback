@@ -1,4 +1,3 @@
-
 from state_representation import *
 from neural_net import NeuralNet
 # initialise player
@@ -36,19 +35,22 @@ class Player:
     # player selects next action and returns it given current state of the board
     # turns - number of turns that have taken place since start of current game phase
     def action(self, turns):
-        print(turns)
+        action, prob, score, hiddenScore, alpha = self.max_value(2, None, self.colour, turns, self.isPlacing, None, None)
+
         if turns in SHRINK_BEFORE:
             self.shrink(turns)
 
-        action, prob, score, hiddenScore, alpha = self.max_value(3, None, self.colour, turns, self.isPlacing, None, None)
         self.updateBoard(action, self.colour)
+
         if turns in SHRINK_AFTER:
             self.shrink(turns)
+
         if self.isPlacing and turns == 23:
             self.isPlacing = False
 
         if self.isPlacing and turns == 22:
             self.isPlacing = False
+
         return action
 
 
@@ -64,9 +66,12 @@ class Player:
 
     def max_value(self, depth, action, colour, turns, isPlacing, alpha, beta):
         if depth == 0:
-            prob, score, hiddenScore = self.evaluateAction(action, turns)
+            prob, score, hiddenScore = self.evaluateAction(action, turns - 1, colour)
             return action, prob, score, hiddenScore, prob
+        old_board = self.board
         update_information = self.updateBoard(action, colour)
+        if turns in SHRINK_BEFORE:
+            eliminated = self.shrink(turns)
         if isPlacing and turns == 24:
             isPlacing = False
             turns = -1
@@ -87,17 +92,24 @@ class Player:
 
             if beta != None and alpha != None:
                 if alpha >= beta:
+                    if turns in SHRINK_BEFORE:
+                        self.unshrink(turns, eliminated)
                     self.undo_update(update_information)
                     return best_move, best_prob, best_score, best_hiddenScore, beta
+        if turns in SHRINK_BEFORE:
+            self.unshrink(turns, eliminated)
         self.undo_update(update_information)
         return best_move, best_prob, best_score, best_hiddenScore, alpha
 
 
     def min_value(self, depth, action, colour, turns, isPlacing, alpha, beta):
         if depth == 0:
-            prob, score, hiddenScore = self.evaluateAction(action, turns)
+            prob, score, hiddenScore = self.evaluateAction(action, turns, colour)
             return action, prob, score, hiddenScore, prob
         update_information = self.updateBoard(action, colour)
+        if turns in SHRINK_BEFORE:
+            eliminated = self.shrink(turns)
+
         if isPlacing and turns == 24:
             isPlacing = False
             turns = -1
@@ -117,8 +129,12 @@ class Player:
 
             if beta != None and alpha != None:
                 if alpha >= beta:
+                    if turns in SHRINK_BEFORE:
+                        self.unshrink(turns, eliminated)
                     self.undo_update(update_information)
                     return best_move, best_prob, best_score, best_hiddenScore, alpha
+        if turns in SHRINK_BEFORE:
+            self.unshrink(turns, eliminated)
         self.undo_update(update_information)
         return best_move, best_prob, best_score, best_hiddenScore, beta
 
@@ -166,13 +182,15 @@ class Player:
         return actions
 
     #evaluates the probability of winning if a certain action is taken
-    def evaluateAction(self, action, turns):
+    def evaluateAction(self, action, turns, colour):
+        if action == None:
+            return self.neuralNet.evaluateBoardAdvanced(self.board, colour, turns)
         x, y = action
         #if placing action
         if (isinstance(x, int) and isinstance(y, int)):
-            piece = Piece(self.colour, (x,y), self.board)
+            piece = Piece(colour, (x,y), self.board)
             eliminated = piece.makemove((x,y))
-            prob, score, hiddenScore = self.neuralNet.evaluateBoardAdvanced(self.board, self.colour, turns)
+            prob, score, hiddenScore = self.neuralNet.evaluateBoardAdvanced(self.board, colour, turns)
             piece.undomove((x, y), eliminated)
             piece.eliminate()
 
@@ -180,14 +198,14 @@ class Player:
         else:
             piece = self.board.find_piece(x)
             eliminated = piece.makemove(y)
-            prob, score, hiddenScore = self.neuralNet.evaluateBoardAdvanced(self.board, self.colour, turns)
+            prob, score, hiddenScore = self.neuralNet.evaluateBoardAdvanced(self.board, colour, turns)
             piece.undomove(x, eliminated)
 
         return prob, score, hiddenScore
 
     #enacts action on board
     def updateBoard(self, action, colour):
-        if action:
+        if action != None:
             x, y = action
             if (isinstance(x, int) and isinstance(y, int)):
                 piece = Piece(colour, (x, y), self.board)
@@ -211,7 +229,33 @@ class Player:
 
             return
 
+    def unshrink(self, turns, eliminated):
+        if turns in SHRINK1:
+            edge = [0, BOARD_SIZE - 1]
+            new_corners = [(0, 0), (0, 7), (7, 7), (7, 0)]
+            old_corners = [(1, 1), (1, 6), (6, 6), (6, 1)]
+        elif turns in SHRINK2:
+            edge = [1, BOARD_SIZE - 2]
+            new_corners = [(1, 1), (1, 6), (6, 6), (6, 1)]
+            old_corners = [(2, 2), (2, 5), (5, 5), (5, 2)]
+        else:
+            print("shrinking gone wrong")
+
+        for x in range(BOARD_SIZE):
+            for y in range(BOARD_SIZE):
+                if x in edge or y in edge:
+                    self.board.grid[(x,y)] = BLANK
+
+        for corner in new_corners:
+            self.board.grid[corner] = CORNER
+        for corner in old_corners:
+            self.board.grid[corner] = BLANK
+        for piece in eliminated:
+            piece.resurrect()
+        return
+
     def shrink(self, turns):
+        eliminated = []
         if turns in SHRINK1:
             edge = [0, BOARD_SIZE - 1]
             corners = [(1, 1), (1, 6), (6, 6), (6, 1)]
@@ -226,12 +270,14 @@ class Player:
                 if x in edge or y in edge:
                     piece = self.board.find_piece((x,y))
                     if piece:
+                        eliminated.append(piece)
                         piece.eliminate()
                     self.board.grid[(x,y)] = REMOVED
 
         for corner in corners:
             piece = self.board.find_piece(corner)
             if piece:
+                eliminated.append(piece)
                 piece.eliminate()
             self.board.grid[corner] = CORNER
             for direction in DIRECTIONS:
@@ -241,5 +287,6 @@ class Player:
                 opposite_piece = self.board.find_piece(opposite_square)
                 if adjacent_piece and opposite_piece:
                     if adjacent_piece.player != opposite_piece.player:
+                        eliminated.append(adjacent_piece)
                         adjacent_piece.eliminate()
-        return
+        return eliminated
