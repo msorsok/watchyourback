@@ -28,7 +28,7 @@ class NeuralNet:
         self.decay_rate = 0.99
         self.hidden = 70
         self.input = 145
-        self.learning_rate = 1
+        self.learning_rate = 1e-2
         self.reward_sum = 0
         self.myLambda = 0.7
         self.running_reward = None
